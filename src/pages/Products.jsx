@@ -17,24 +17,31 @@ const Products = () => {
         cost: '',
         price: '',
         stock_quantity: '',
+        product_image: null,  // Added product_image field
     });
+
+    const handleFileChange = (e) => {
+        setFormData({
+            ...formData,
+            product_image: e.target.files[0],  // Set product_image to selected file
+        });
+    };
 
     useEffect(() => {
         // Fetch products on component mount
-
-    const fetchProducts = async () => {
-        try {
-            const response = await axios.get(`${URL}/products`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-            setProducts(response.data);
-            console.log('Fetched products:', response.data);
-        } catch (error) {
-            console.error('Error fetching products:', error);
-        }
-    };
+        const fetchProducts = async () => {
+            try {
+                const response = await axios.get(`${URL}/products`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+                setProducts(response.data);
+                console.log('Fetched products:', response.data);
+            } catch (error) {
+                console.error('Error fetching products:', error);
+            }
+        };
         fetchProducts();
     }, [token]);
 
@@ -53,18 +60,44 @@ const Products = () => {
                 console.error('No token found');
                 return;
             }
-            const response = await axios.post(`${URL}/products`, formData, {
+
+            // Create FormData to handle file upload
+            const productData = new FormData();
+            productData.append('name', formData.name);
+            productData.append('cost', formData.cost);
+            productData.append('price', formData.price);
+            productData.append('stock_quantity', formData.stock_quantity);
+            if (formData.product_image) {
+                productData.append('file', formData.product_image);
+            }
+
+            const uploadResponse = await axios.post(`${URL}/upload`, productData, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            const imageFileName = uploadResponse.data.filename;
+
+            // Save product data including image URL
+            const productResponse = await axios.post(`${URL}/products`, {
+                ...formData,
+                product_image: imageFileName,
+            }, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
             });
-            console.log('Product added:', response.data);
+
+            console.log('Product added:', productResponse.data);
             setFormData({
                 name: '',
                 cost: '',
                 price: '',
                 stock_quantity: '',
+                product_image: null,
             });
             toggleModal();
         } catch (error) {
@@ -133,6 +166,14 @@ const Products = () => {
                                     className="form-input p-2 border border-gray-300 rounded w-full"
                                 />
                             </div>
+                            <div className="mb-4">
+                                <input
+                                    type="file"
+                                    name="product_image"
+                                    onChange={handleFileChange}
+                                    className="form-input p-2 border border-gray-300 rounded w-full"
+                                />
+                            </div>
                             <div className="flex justify-end">
                                 <button
                                     type="submit"
@@ -173,6 +214,7 @@ const Products = () => {
                             <th className="py-2">Cost</th>
                             <th className="py-2">Price</th>
                             <th className="py-2">Stock Quantity</th>
+                            <th className="py-2">Image</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -183,6 +225,9 @@ const Products = () => {
                                 <td className="border px-4 py-2">{product.cost}</td>
                                 <td className="border px-4 py-2">{product.price}</td>
                                 <td className="border px-4 py-2">{product.stock_quantity}</td>
+                                <td className="border px-4 py-2">
+                                    <img src={`${URL}/static/uploads/${product.product_image}`} alt={product.name} width="100" />
+                                </td>
                             </tr>
                         ))}
                     </tbody>
